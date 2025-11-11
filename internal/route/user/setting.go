@@ -215,6 +215,8 @@ func SettingsPasswordPost(c *context.Context, f form.ChangePassword) {
 		c.Flash.Error(c.Tr("settings.password_incorrect"))
 	} else if f.Password != f.Retype {
 		c.Flash.Error(c.Tr("form.password_not_match"))
+	} else if !isStrongPassword(f.Password) {
+		c.Flash.Error("密码必须至少8位，包含大小写字母、数字和特殊字符")
 	} else {
 		err := database.Handle.Users().Update(
 			c.Req.Context(),
