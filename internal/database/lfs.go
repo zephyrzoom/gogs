@@ -75,6 +75,21 @@ func (s *LFSStore) GetObjectByOID(ctx context.Context, repoID int64, oid lfsutil
 	return object, err
 }
 
+// TotalObjectsSize returns the total size of LFS objects stored for the given
+// repository, in bytes.
+func (s *LFSStore) TotalObjectsSize(ctx context.Context, repoID int64) (int64, error) {
+	var total int64
+	err := s.db.WithContext(ctx).
+		Model(&LFSObject{}).
+		Where("repo_id = ?", repoID).
+		Select("COALESCE(SUM(size), 0)").
+		Scan(&total).Error
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 // GetObjectsByOIDs returns LFS objects found within "oids". The returned list
 // could have fewer elements if some oids were not found.
 func (s *LFSStore) GetObjectsByOIDs(ctx context.Context, repoID int64, oids ...lfsutil.OID) ([]*LFSObject, error) {

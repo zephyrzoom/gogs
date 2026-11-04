@@ -317,6 +317,7 @@ type RepositoryOpts struct {
 	ANSICharset              string `ini:"ANSI_CHARSET"`
 	ForcePrivate             bool
 	MaxCreationLimit         int
+	MaxRepoSize              int64 // In megabytes, 0 means no limit
 	PreferredLicenses        []string
 	DisableHTTPGit           bool `ini:"DISABLE_HTTP_GIT"`
 	EnableLocalPathMigration bool

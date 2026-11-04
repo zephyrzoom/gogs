@@ -7,6 +7,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/url"
@@ -25,6 +26,7 @@ import (
 	"gogs.io/gogs/internal/database"
 	"gogs.io/gogs/internal/email"
 	"gogs.io/gogs/internal/httplib"
+	"gogs.io/gogs/internal/repoutil"
 )
 
 var (
@@ -69,6 +71,11 @@ func runHookPreReceive(c *cli.Context) error {
 	setup(c, "pre-receive.log", true)
 
 	isWiki := strings.Contains(os.Getenv(database.EnvRepoCustomHooksPath), ".wiki.git/")
+
+	// The size limit applies to the repository itself, but not to its wiki.
+	if !isWiki {
+		checkRepositorySizeLimit()
+	}
 
 	buf := bytes.NewBuffer(nil)
 	scanner := bufio.NewScanner(os.Stdin)
@@ -153,6 +160,66 @@ func runHookPreReceive(c *cli.Context) error {
 		fail("Internal error", "Failed to execute custom pre-receive hook: %v", err)
 	}
 	return nil
+}
+
+// checkRepositorySizeLimit rejects the push when the repository has reached the
+// globally configured size limit (see "MAX_REPO_SIZE" of the "[repository]"
+// section), or when the on-going push would take it over the limit.
+func checkRepositorySizeLimit() {
+	limitMB := conf.Repository.MaxRepoSize
+	if limitMB <= 0 {
+		return
+	}
+
+	repoOwner := os.Getenv(database.EnvRepoOwnerName)
+	repoName := os.Getenv(database.EnvRepoName)
+	repoID := com.StrTo(os.Getenv(database.EnvRepoID)).MustInt64()
+
+	sizeKB, err := repoutil.RepositorySize(database.RepoPath(repoOwner, repoName))
+	if err != nil {
+		// Failing to measure the size should never block users from pushing.
+		log.Error("Failed to calculate repository size [repo: %s/%s]: %v", repoOwner, repoName, err)
+		return
+	}
+
+	// LFS objects are stored outside of the Git repository, but still occupy the
+	// disk space of the repository.
+	var lfsSizeKB int64
+	if lfsSize, err := database.Handle.LFS().TotalObjectsSize(context.Background(), repoID); err != nil {
+		log.Error("Failed to calculate repository LFS size [repo_id: %d]: %v", repoID, err)
+	} else {
+		lfsSizeKB = lfsSize / 1024
+	}
+
+	limitKB := limitMB * 1024
+	totalKB := sizeKB + lfsSizeKB
+	pendingKB := repoutil.PendingObjectsSize()
+	if totalKB < limitKB && totalKB+pendingKB < limitKB {
+		return
+	}
+
+	var reason string
+	if totalKB >= limitKB {
+		reason = "仓库已达到大小上限"
+	} else {
+		reason = "本次推送后将超过仓库大小上限"
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s，推送被拒绝。\n", reason)
+	fmt.Fprintf(&b, "仓库：%s/%s\n", repoOwner, repoName)
+	fmt.Fprintf(&b, "当前大小：%s（Git 对象 %s", repoutil.HumanSize(totalKB), repoutil.HumanSize(sizeKB))
+	if lfsSizeKB > 0 {
+		fmt.Fprintf(&b, " + LFS 对象 %s", repoutil.HumanSize(lfsSizeKB))
+	}
+	fmt.Fprintf(&b, "），上限：%d MB", limitMB)
+	if pendingKB > 0 && totalKB < limitKB {
+		fmt.Fprintf(&b, "，本次推送约 %s", repoutil.HumanSize(pendingKB))
+	}
+	b.WriteString("\n请删除仓库中的大文件（如使用 git filter-repo 或 BFG 重写历史）后重试，或联系管理员调整上限。")
+
+	fail(b.String(), "Push rejected by repository size limit [repo: %s/%s, size: %d KB, limit: %d KB]",
+		repoOwner, repoName, totalKB, limitKB)
 }
 
 func runHookUpdate(c *cli.Context) error {
