@@ -5,6 +5,7 @@
 package admin
 
 import (
+	"fmt"
 	"net/http"
 
 	api "github.com/gogs/go-gogs-client"
@@ -15,6 +16,7 @@ import (
 	"gogs.io/gogs/internal/database"
 	"gogs.io/gogs/internal/email"
 	"gogs.io/gogs/internal/route/api/v1/user"
+	"gogs.io/gogs/internal/userutil"
 )
 
 func parseLoginSource(c *context.APIContext, sourceID int64) {
@@ -33,9 +35,21 @@ func parseLoginSource(c *context.APIContext, sourceID int64) {
 	}
 }
 
+// errWeakPassword is the error returned when the given password does not
+// satisfy the password policy.
+func errWeakPassword() error {
+	return fmt.Errorf("password must be at least %d characters and contain uppercase letters, lowercase letters, digits, and special characters", userutil.MinPasswordLength)
+}
+
 func CreateUser(c *context.APIContext, form api.CreateUserOption) {
 	parseLoginSource(c, form.SourceID)
 	if c.Written() {
+		return
+	}
+
+	// Local accounts are the only ones whose password is managed by Gogs.
+	if form.SourceID == 0 && !userutil.IsStrongPassword(form.Password) {
+		c.ErrorStatus(http.StatusUnprocessableEntity, errWeakPassword())
 		return
 	}
 
@@ -97,6 +111,10 @@ func EditUser(c *context.APIContext, form api.EditUserOption) {
 	}
 
 	if form.Password != "" {
+		if !userutil.IsStrongPassword(form.Password) {
+			c.ErrorStatus(http.StatusUnprocessableEntity, errWeakPassword())
+			return
+		}
 		opts.Password = &form.Password
 	}
 

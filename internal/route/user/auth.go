@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"unicode"
 
 	"github.com/go-macaron/captcha"
 	"github.com/unknwon/com"
@@ -309,28 +308,6 @@ func SignUp(c *context.Context) {
 	c.Success(tmplUserAuthSignup)
 }
 
-func isStrongPassword(pwd string) bool {
-    if len(pwd) < 8 {
-        return false
-    }
-
-    var hasUpper, hasLower, hasDigit, hasSpecial bool
-    for _, c := range pwd {
-        switch {
-        case unicode.IsUpper(c):
-            hasUpper = true
-        case unicode.IsLower(c):
-            hasLower = true
-        case unicode.IsDigit(c):
-            hasDigit = true
-        case unicode.IsPunct(c) || unicode.IsSymbol(c):
-            hasSpecial = true
-        }
-    }
-    return hasUpper && hasLower && hasDigit && hasSpecial
-}
-
-
 func SignUpPost(c *context.Context, cpt *captcha.Captcha, f form.Register) {
 	c.Title("sign_up")
 
@@ -352,11 +329,11 @@ func SignUpPost(c *context.Context, cpt *captcha.Captcha, f form.Register) {
 		return
 	}
 
-	if !isStrongPassword(f.Password) {
-		c.RenderWithErr("密码必须至少8位，包含大小写字母、数字和特殊字符", tmplUserAuthSignup, &f)
+	if !userutil.IsStrongPassword(f.Password) {
+		c.FormErr("Password")
+		c.RenderWithErr(c.Tr("auth.password_too_weak", userutil.MinPasswordLength), tmplUserAuthSignup, &f)
 		return
 	}
-
 
 	if f.Password != f.Retype {
 		c.FormErr("Password")
@@ -641,12 +618,12 @@ func ResetPasswdPost(c *context.Context) {
 	c.Data["Code"] = code
 
 	if u := verifyUserActiveCode(code); u != nil {
-		// Validate password length.
+		// Validate password strength.
 		password := c.Query("password")
-		if len(password) < 6 {
+		if !userutil.IsStrongPassword(password) {
 			c.Data["IsResetForm"] = true
 			c.Data["Err_Password"] = true
-			c.RenderWithErr(c.Tr("auth.password_too_short"), tmplUserAuthResetPassword, nil)
+			c.RenderWithErr(c.Tr("auth.password_too_weak", userutil.MinPasswordLength), tmplUserAuthResetPassword, nil)
 			return
 		}
 

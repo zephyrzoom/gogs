@@ -41,7 +41,8 @@
 						<input class="fake" type="password">
 						<div class="required local field {{if .Err_Password}}error{{end}} {{if not (eq .login_type "0-0")}}hide{{end}}">
 							<label for="password">{{.i18n.Tr "password"}}</label>
-							<input id="password" name="password" type="password" value="{{.password}}" {{if eq .login_type "0-0"}}required{{end}}>
+							<input id="password" name="password" type="password" minlength="8" value="{{.password}}" {{if eq .login_type "0-0"}}required{{end}}>
+							<p class="help">{{.i18n.Tr "auth.password_helper"}}</p>
 						</div>
 
 						<!-- Send register notify e-mail -->

@@ -16,6 +16,7 @@ import (
 	"gogs.io/gogs/internal/email"
 	"gogs.io/gogs/internal/form"
 	"gogs.io/gogs/internal/route"
+	"gogs.io/gogs/internal/userutil"
 )
 
 const (
@@ -73,6 +74,13 @@ func NewUserPost(c *context.Context, f form.AdminCrateUser) {
 
 	if c.HasError() {
 		c.Success(tmplAdminUserNew)
+		return
+	}
+
+	// Local accounts are the only ones whose password is managed by Gogs.
+	if strings.HasPrefix(f.LoginType, "0-") && !userutil.IsStrongPassword(f.Password) {
+		c.Data["Err_Password"] = true
+		c.RenderWithErr(c.Tr("auth.password_too_weak", userutil.MinPasswordLength), tmplAdminUserNew, &f)
 		return
 	}
 
@@ -196,6 +204,11 @@ func EditUserPost(c *context.Context, f form.AdminEditUser) {
 	}
 
 	if f.Password != "" {
+		if !userutil.IsStrongPassword(f.Password) {
+			c.Data["Err_Password"] = true
+			c.RenderWithErr(c.Tr("auth.password_too_weak", userutil.MinPasswordLength), tmplAdminUserEdit, &f)
+			return
+		}
 		opts.Password = &f.Password
 	}
 

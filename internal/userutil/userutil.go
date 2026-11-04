@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/nfnt/resize"
 	"github.com/pkg/errors"
@@ -122,6 +124,38 @@ func EncodePassword(password, salt string) string {
 func ValidatePassword(encoded, salt, password string) bool {
 	got := EncodePassword(password, salt)
 	return subtle.ConstantTimeCompare([]byte(encoded), []byte(got)) == 1
+}
+
+// MinPasswordLength is the minimum number of characters that a local account
+// password must contain.
+const MinPasswordLength = 8
+
+// IsStrongPassword returns true if the given password satisfies the password
+// policy: at least MinPasswordLength characters and contains at least one
+// uppercase letter, one lowercase letter, one digit, and one special character.
+//
+// The length is counted in characters (runes) rather than bytes, so a password
+// made of multi-byte characters cannot pass the length check with fewer
+// characters than required.
+func IsStrongPassword(password string) bool {
+	if utf8.RuneCountInString(password) < MinPasswordLength {
+		return false
+	}
+
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, r := range password {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSpecial = true
+		}
+	}
+	return hasUpper && hasLower && hasDigit && hasSpecial
 }
 
 // MailResendCacheKey returns the key used for caching mail resend.

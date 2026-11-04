@@ -32,6 +32,55 @@ func TestDashboardURLPath(t *testing.T) {
 	})
 }
 
+func TestIsStrongPassword(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+		want     bool
+	}{
+		{
+			name:     "too short",
+			password: "Ab1!xyz",
+			want:     false,
+		},
+		{
+			name:     "multi-byte characters must not pass length by bytes",
+			password: "Ab1!中文",
+			want:     false,
+		},
+		{
+			name:     "missing uppercase letter",
+			password: "ab1!xyzab",
+			want:     false,
+		},
+		{
+			name:     "missing lowercase letter",
+			password: "AB1!XYZAB",
+			want:     false,
+		},
+		{
+			name:     "missing digit",
+			password: "Abc!xyzab",
+			want:     false,
+		},
+		{
+			name:     "missing special character",
+			password: "Abc1xyzab",
+			want:     false,
+		},
+		{
+			name:     "valid",
+			password: "Abc1!xyz",
+			want:     true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, IsStrongPassword(test.password))
+		})
+	}
+}
+
 func TestGenerateActivateCode(t *testing.T) {
 	conf.SetMockAuth(t,
 		conf.AuthOpts{
