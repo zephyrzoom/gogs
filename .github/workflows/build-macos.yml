@@ -1,0 +1,86 @@
+name: Build macOS
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  GOPROXY: "https://proxy.golang.org"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build darwin/arm64
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so `git describe` can resolve tags
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve build metadata
+        id: meta
+        run: |
+          set -eu
+          # Prefer the tag name, fall back to the short commit SHA on untagged pushes.
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || true)
+          if [ -z "$VERSION" ]; then
+            VERSION=$(printf '%s' "$GITHUB_SHA" | cut -c1-7)
+          fi
+          PACKAGE="gogs_${VERSION}_darwin_arm64"
+          BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "build_time=$BUILD_TIME" >> "$GITHUB_OUTPUT"
+          echo "Building $PACKAGE at $BUILD_TIME"
+
+      - name: Build binary
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+          CGO_ENABLED: 0 # pure Go build, no PAM support
+          BUILD_TIME: ${{ steps.meta.outputs.build_time }}
+        run: |
+          go build -v \
+            -ldflags "-s -w \
+              -X 'gogs.io/gogs/internal/conf.BuildTime=${BUILD_TIME}' \
+              -X 'gogs.io/gogs/internal/conf.BuildCommit=${GITHUB_SHA}'" \
+            -trimpath \
+            -o gogs .
+
+      - name: Package
+        env:
+          PACKAGE: ${{ steps.meta.outputs.package }}
+        run: |
+          set -eu
+          mkdir -p "dist/${PACKAGE}"
+          cp gogs LICENSE README.md README_ZH.md "dist/${PACKAGE}/"
+          cp -R scripts "dist/${PACKAGE}/"
+          cd dist
+          zip -qry "${PACKAGE}.zip" "${PACKAGE}"
+          shasum -a 256 "${PACKAGE}.zip" > "${PACKAGE}.zip.sha256"
+          cat "${PACKAGE}.zip.sha256"
+          ls -lh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gogs-darwin-arm64
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0 # already a zip
