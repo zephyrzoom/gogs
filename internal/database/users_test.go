@@ -1084,6 +1084,7 @@ func usersUpdate(t *testing.T, ctx context.Context, s *UsersStore) {
 
 	loginSource := int64(1)
 	maxRepoCreation := 99
+	maxRepoTotalSize := int64(2048)
 	lastRepoVisibility := true
 	overLimitStr := strings.Repeat("a", 2050)
 	opts := UpdateUserOptions{
@@ -1096,6 +1097,7 @@ func usersUpdate(t *testing.T, ctx context.Context, s *UsersStore) {
 		Description: &overLimitStr,
 
 		MaxRepoCreation:    &maxRepoCreation,
+		MaxRepoTotalSize:   &maxRepoTotalSize,
 		LastRepoVisibility: &lastRepoVisibility,
 
 		IsActivated:      &lastRepoVisibility,
@@ -1122,6 +1124,7 @@ func usersUpdate(t *testing.T, ctx context.Context, s *UsersStore) {
 		assert.Equal(t, wantStr255, alice.Location)
 		assert.Equal(t, wantStr255, alice.Description)
 		assert.Equal(t, maxRepoCreation, alice.MaxRepoCreation)
+		assert.Equal(t, maxRepoTotalSize, alice.MaxRepoTotalSize)
 		assert.Equal(t, lastRepoVisibility, alice.LastRepoVisibility)
 		assert.Equal(t, lastRepoVisibility, alice.IsActive)
 		assert.Equal(t, lastRepoVisibility, alice.IsAdmin)

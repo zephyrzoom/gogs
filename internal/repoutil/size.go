@@ -86,6 +86,38 @@ func RepositorySize(repoPath string) (int64, error) {
 	return sizeKB, nil
 }
 
+// DirSize returns the total disk usage of the files under the given directory,
+// in kilobytes. It returns 0 when the directory does not exist. Directories in
+// "exclude" are skipped, which is useful to leave out the quarantine directory
+// of an on-going push.
+func DirSize(dir string, exclude ...string) (int64, error) {
+	var size int64
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if d.IsDir() {
+			for _, ex := range exclude {
+				if ex != "" && filepath.Clean(path) == filepath.Clean(ex) {
+					return fs.SkipDir
+				}
+			}
+			return nil
+		}
+		if info, err := d.Info(); err == nil {
+			size += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return size / 1024, nil
+}
+
 // PendingObjectsSize returns the size of the objects that are being received by
 // the on-going push, in kilobytes. It returns 0 when it is not possible to tell,
 // e.g. not running inside a Git receive-pack hook.
@@ -95,13 +127,8 @@ func RepositorySize(repoPath string) (int64, error) {
 // push is accepted. Counting its size allows rejecting a push that would take
 // the repository over the size limit instead of only rejecting the next one.
 func PendingObjectsSize() int64 {
-	dir := os.Getenv("GIT_QUARANTINE_PATH")
+	dir := QuarantineDir()
 	if dir == "" {
-		dir = os.Getenv("GIT_OBJECT_DIRECTORY")
-	}
-	// 🚨 SECURITY: Only count the directory when it really is a quarantine
-	// directory, never the live object database.
-	if !strings.HasPrefix(filepath.Base(dir), "incoming-") {
 		return 0
 	}
 
@@ -116,6 +143,21 @@ func PendingObjectsSize() int64 {
 		return nil
 	})
 	return sizeKB
+}
+
+// QuarantineDir returns the directory where Git stores the objects of the
+// on-going push, or an empty string when not running inside a receive-pack hook.
+func QuarantineDir() string {
+	dir := os.Getenv("GIT_QUARANTINE_PATH")
+	if dir == "" {
+		dir = os.Getenv("GIT_OBJECT_DIRECTORY")
+	}
+	// 🚨 SECURITY: Only return the directory when it really is a quarantine
+	// directory, never the live object database.
+	if !strings.HasPrefix(filepath.Base(dir), "incoming-") {
+		return ""
+	}
+	return dir
 }
 
 // HumanSize returns a human-readable representation of the given size in

@@ -18,12 +18,13 @@ func (f *CreateOrg) Validate(ctx *macaron.Context, errs binding.Errors) binding.
 }
 
 type UpdateOrgSetting struct {
-	Name            string `binding:"Required;AlphaDashDot;MaxSize(35)" locale:"org.org_name_holder"`
-	FullName        string `binding:"MaxSize(100)"`
-	Description     string `binding:"MaxSize(255)"`
-	Website         string `binding:"Url;MaxSize(100)"`
-	Location        string `binding:"MaxSize(50)"`
-	MaxRepoCreation int
+	Name             string `binding:"Required;AlphaDashDot;MaxSize(35)" locale:"org.org_name_holder"`
+	FullName         string `binding:"MaxSize(100)"`
+	Description      string `binding:"MaxSize(255)"`
+	Website          string `binding:"Url;MaxSize(100)"`
+	Location         string `binding:"MaxSize(50)"`
+	MaxRepoCreation  int
+	MaxRepoTotalSize int64
 }
 
 func (f *UpdateOrgSetting) Validate(ctx *macaron.Context, errs binding.Errors) binding.Errors {

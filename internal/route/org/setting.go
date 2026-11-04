@@ -70,6 +70,7 @@ func SettingsPost(c *context.Context, f form.UpdateOrgSetting) {
 	}
 	if c.User.IsAdmin {
 		opts.MaxRepoCreation = &f.MaxRepoCreation
+		opts.MaxRepoTotalSize = &f.MaxRepoTotalSize
 	}
 	err := database.Handle.Users().Update(c.Req.Context(), c.Org.Organization.ID, opts)
 	if err != nil {

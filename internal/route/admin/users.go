@@ -188,6 +188,7 @@ func EditUserPost(c *context.Context, f form.AdminEditUser) {
 		Website:          &f.Website,
 		Location:         &f.Location,
 		MaxRepoCreation:  &f.MaxRepoCreation,
+		MaxRepoTotalSize: &f.MaxRepoTotalSize,
 		IsActivated:      &f.Active,
 		IsAdmin:          &f.Admin,
 		AllowGitHook:     &f.AllowGitHook,

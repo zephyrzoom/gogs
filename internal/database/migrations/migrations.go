@@ -63,6 +63,8 @@ var migrations = []Migration{
 	// on v22. Let's make a noop v22 to make sure every instance will not miss a
 	// real future migration.
 	NewMigration("noop", func(*gorm.DB) error { return nil }),
+	// v22 -> v23
+	NewMigration("add max_repo_total_size column to user table", addMaxRepoTotalSizeToUser),
 }
 
 var errMigrationSkipped = errors.New("the migration has been skipped")

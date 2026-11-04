@@ -90,6 +90,25 @@ func (s *LFSStore) TotalObjectsSize(ctx context.Context, repoID int64) (int64, e
 	return total, nil
 }
 
+// TotalObjectsSizeByOwner returns the total size of LFS objects stored for all
+// repositories owned by the given user, in bytes.
+func (s *LFSStore) TotalObjectsSizeByOwner(ctx context.Context, ownerID int64) (int64, error) {
+	var total int64
+	repoIDs := s.db.WithContext(ctx).
+		Model(&Repository{}).
+		Select("id").
+		Where("owner_id = ?", ownerID)
+	err := s.db.WithContext(ctx).
+		Model(&LFSObject{}).
+		Where("repo_id IN (?)", repoIDs).
+		Select("COALESCE(SUM(size), 0)").
+		Scan(&total).Error
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 // GetObjectsByOIDs returns LFS objects found within "oids". The returned list
 // could have fewer elements if some oids were not found.
 func (s *LFSStore) GetObjectsByOIDs(ctx context.Context, repoID int64, oids ...lfsutil.OID) ([]*LFSObject, error) {

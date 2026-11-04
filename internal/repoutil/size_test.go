@@ -69,6 +69,28 @@ func TestPendingObjectsSize(t *testing.T) {
 	})
 }
 
+func TestDirSize(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "a", "b"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a", "b", "f.bin"), bytes.Repeat([]byte{0}, 2048), 0600))
+
+	sizeKB, err := DirSize(dir)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, sizeKB)
+
+	t.Run("not exist", func(t *testing.T) {
+		sizeKB, err := DirSize(filepath.Join(dir, "not-exist"))
+		require.NoError(t, err)
+		assert.Zero(t, sizeKB)
+	})
+
+	t.Run("exclude", func(t *testing.T) {
+		sizeKB, err := DirSize(dir, filepath.Join(dir, "a"))
+		require.NoError(t, err)
+		assert.Zero(t, sizeKB)
+	})
+}
+
 func TestHumanSize(t *testing.T) {
 	assert.Equal(t, "0.0 MB", HumanSize(0))
 	assert.Equal(t, "512.0 MB", HumanSize(512*1024))

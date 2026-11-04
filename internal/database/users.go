@@ -904,6 +904,7 @@ type UpdateUserOptions struct {
 	Description *string
 
 	MaxRepoCreation    *int
+	MaxRepoTotalSize   *int64
 	LastRepoVisibility *bool
 
 	IsActivated      *bool
@@ -973,6 +974,12 @@ func (s *UsersStore) Update(ctx context.Context, userID int64, opts UpdateUserOp
 			*opts.MaxRepoCreation = -1
 		}
 		updates["max_repo_creation"] = *opts.MaxRepoCreation
+	}
+	if opts.MaxRepoTotalSize != nil {
+		if *opts.MaxRepoTotalSize < 0 {
+			*opts.MaxRepoTotalSize = 0
+		}
+		updates["max_repo_total_size"] = *opts.MaxRepoTotalSize
 	}
 	if opts.LastRepoVisibility != nil {
 		updates["last_repo_visibility"] = *opts.LastRepoVisibility
@@ -1246,6 +1253,9 @@ type User struct {
 	LastRepoVisibility bool
 	// Maximum repository creation limit, -1 means use global default
 	MaxRepoCreation int `xorm:"NOT NULL DEFAULT -1" gorm:"not null;default:-1"`
+	// Maximum total disk usage of all owned repositories in megabytes,
+	// 0 means no limit
+	MaxRepoTotalSize int64 `xorm:"NOT NULL DEFAULT 0" gorm:"not null;default:0"`
 
 	// Permissions
 	IsActive         bool // Activate primary email
