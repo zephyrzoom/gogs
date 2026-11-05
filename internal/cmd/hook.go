@@ -26,7 +26,6 @@ import (
 	"gogs.io/gogs/internal/database"
 	"gogs.io/gogs/internal/email"
 	"gogs.io/gogs/internal/httplib"
-	"gogs.io/gogs/internal/repoutil"
 )
 
 var (
@@ -162,131 +161,13 @@ func runHookPreReceive(c *cli.Context) error {
 	return nil
 }
 
-// repositoryLFSSize returns the size of LFS objects of the repository in
-// kilobytes. LFS objects are stored outside of the Git repository, but still
-// occupy the disk space of the repository.
-func repositoryLFSSize(repoID int64) int64 {
-	size, err := database.Handle.LFS().TotalObjectsSize(context.Background(), repoID)
-	if err != nil {
-		log.Error("Failed to calculate repository LFS size [repo_id: %d]: %v", repoID, err)
-		return 0
-	}
-	return size / 1024
-}
-
 // checkRepositorySizeLimit rejects the push when the repository has reached its
-// size limit, or when the on-going push would take it over the limit.
+// size limits, or when the on-going push would take it over the limits.
 func checkRepositorySizeLimit() {
-	repoOwner := os.Getenv(database.EnvRepoOwnerName)
-	repoName := os.Getenv(database.EnvRepoName)
 	repoID := com.StrTo(os.Getenv(database.EnvRepoID)).MustInt64()
-
-	checkSingleRepoSizeLimit(repoOwner, repoName, repoID)
-	checkOwnerTotalSizeLimit(repoOwner, repoName)
-}
-
-// checkSingleRepoSizeLimit rejects the push when the repository itself has
-// reached the global size limit ("MAX_REPO_SIZE" of the "[repository]" section).
-func checkSingleRepoSizeLimit(repoOwner, repoName string, repoID int64) {
-	limitMB := conf.Repository.MaxRepoSize
-	if limitMB <= 0 {
-		return
+	if exceeded, message := database.Handle.Repositories().CheckSizeLimits(context.Background(), repoID); exceeded {
+		fail(message, "Push rejected by repository size limit [repo_id: %d]", repoID)
 	}
-
-	sizeKB, err := repoutil.RepositorySize(database.RepoPath(repoOwner, repoName))
-	if err != nil {
-		// Failing to measure the size should never block users from pushing.
-		log.Error("Failed to calculate repository size [repo: %s/%s]: %v", repoOwner, repoName, err)
-		return
-	}
-	lfsSizeKB := repositoryLFSSize(repoID)
-
-	limitKB := limitMB * 1024
-	totalKB := sizeKB + lfsSizeKB
-	pendingKB := repoutil.PendingObjectsSize()
-	if totalKB < limitKB && totalKB+pendingKB < limitKB {
-		return
-	}
-
-	var b strings.Builder
-	if totalKB >= limitKB {
-		b.WriteString("仓库已达到大小上限，推送被拒绝。\n")
-	} else {
-		b.WriteString("本次推送后将超过仓库大小上限，推送被拒绝。\n")
-	}
-	fmt.Fprintf(&b, "仓库：%s/%s\n", repoOwner, repoName)
-	fmt.Fprintf(&b, "当前大小：%s（Git 对象 %s", repoutil.HumanSize(totalKB), repoutil.HumanSize(sizeKB))
-	if lfsSizeKB > 0 {
-		fmt.Fprintf(&b, " + LFS 对象 %s", repoutil.HumanSize(lfsSizeKB))
-	}
-	fmt.Fprintf(&b, "），单仓库上限：%d MB", limitMB)
-	if pendingKB > 0 && totalKB < limitKB {
-		fmt.Fprintf(&b, "，本次推送约 %s", repoutil.HumanSize(pendingKB))
-	}
-	b.WriteString("\n请删除仓库中的大文件（如使用 git filter-repo 或 BFG 重写历史）后重试，或联系管理员调整上限。")
-
-	fail(b.String(), "Push rejected by repository size limit [repo: %s/%s, size: %d KB, limit: %d KB]",
-		repoOwner, repoName, totalKB, limitKB)
-}
-
-// checkOwnerTotalSizeLimit rejects the push when the total disk usage of all
-// repositories owned by the account has reached the account limit
-// ("max_repo_total_size" of the "user" table).
-func checkOwnerTotalSizeLimit(repoOwner, repoName string) {
-	owner, err := database.Handle.Users().GetByUsername(context.Background(), repoOwner)
-	if err != nil {
-		if !database.IsErrUserNotExist(err) {
-			log.Error("Failed to get repository owner [name: %s]: %v", repoOwner, err)
-		}
-		return
-	}
-	// The account specific limit takes precedence over the global default,
-	// which is configured by "MAX_REPO_TOTAL_SIZE" of the "[repository]" section.
-	limitMB := owner.MaxRepoTotalSizeLimit()
-	if limitMB <= 0 {
-		return
-	}
-	limitSource := "全局默认上限"
-	if owner.MaxRepoTotalSize > 0 {
-		limitSource = "账号上限"
-	}
-
-	// The quarantine directory of the on-going push lives inside the repository
-	// directory, leave it out to avoid counting the push twice.
-	sizeKB, err := repoutil.DirSize(repoutil.UserPath(owner.Name), repoutil.QuarantineDir())
-	if err != nil {
-		// Failing to measure the size should never block users from pushing.
-		log.Error("Failed to calculate account disk usage [user: %s]: %v", owner.Name, err)
-		return
-	}
-	if lfsSize, err := database.Handle.LFS().TotalObjectsSizeByOwner(context.Background(), owner.ID); err != nil {
-		log.Error("Failed to calculate account LFS size [user_id: %d]: %v", owner.ID, err)
-	} else {
-		sizeKB += lfsSize / 1024
-	}
-
-	limitKB := limitMB * 1024
-	pendingKB := repoutil.PendingObjectsSize()
-	if sizeKB < limitKB && sizeKB+pendingKB < limitKB {
-		return
-	}
-
-	var b strings.Builder
-	if sizeKB >= limitKB {
-		b.WriteString("账号下所有仓库的总占用已达到上限，推送被拒绝。\n")
-	} else {
-		b.WriteString("本次推送后将超过账号下所有仓库的总占用上限，推送被拒绝。\n")
-	}
-	fmt.Fprintf(&b, "仓库：%s/%s\n", repoOwner, repoName)
-	fmt.Fprintf(&b, "账号：%s\n", owner.Name)
-	fmt.Fprintf(&b, "当前总占用：%s，%s：%d MB", repoutil.HumanSize(sizeKB), limitSource, limitMB)
-	if pendingKB > 0 && sizeKB < limitKB {
-		fmt.Fprintf(&b, "，本次推送约 %s", repoutil.HumanSize(pendingKB))
-	}
-	b.WriteString("\n请删除账号下仓库中的大文件（如使用 git filter-repo 或 BFG 重写历史）后重试，或联系管理员调整上限。")
-
-	fail(b.String(), "Push rejected by account repository total size limit [user: %s, size: %d KB, limit: %d KB]",
-		owner.Name, sizeKB, limitKB)
 }
 
 func runHookUpdate(c *cli.Context) error {

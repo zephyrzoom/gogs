@@ -317,6 +317,28 @@ func packetWrite(str string) []byte {
 	return []byte(s + str)
 }
 
+// checkSizeLimits reports whether the repository has reached its size limits.
+// It must never make the request fail, so any unexpected error is swallowed.
+func checkSizeLimits(h serviceHandler) (exceeded bool, message string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Panic while checking repository size limits [repo_id: %d]: %v", h.repoID, r)
+			exceeded, message = false, ""
+		}
+	}()
+	return database.Handle.Repositories().CheckSizeLimits(h.r.Context(), h.repoID)
+}
+
+// singleLine converts a multi-line message into a single line, because a
+// pkt-line cannot contain line breaks.
+func singleLine(message string) string {
+	lines := strings.Split(strings.TrimSpace(message), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimSuffix(strings.TrimSpace(line), "。")
+	}
+	return strings.Join(lines, "；") + "。"
+}
+
 func getInfoRefs(h serviceHandler) {
 	h.setHeaderNoCache()
 	service := getServiceType(h.r)
@@ -324,6 +346,20 @@ func getInfoRefs(h serviceHandler) {
 		updateServerInfo(h.dir)
 		h.sendFile("text/plain; charset=utf-8")
 		return
+	}
+
+	// Reject the push before the client uploads any object when the repository
+	// has already reached its size limit, so that the user gets a clear message
+	// instead of a failure in the middle of the transfer.
+	if service == "receive-pack" {
+		if exceeded, message := checkSizeLimits(h); exceeded {
+			h.w.Header().Set("Content-Type", fmt.Sprintf("application/x-git-%s-advertisement", service))
+			h.w.WriteHeader(http.StatusOK)
+			_, _ = h.w.Write(packetWrite("# service=git-" + service + "\n"))
+			_, _ = h.w.Write([]byte("0000"))
+			_, _ = h.w.Write(packetWrite("ERR " + singleLine(message) + "\n"))
+			return
+		}
 	}
 
 	refs := gitCommand(h.dir, service, "--stateless-rpc", "--advertise-refs", ".")
