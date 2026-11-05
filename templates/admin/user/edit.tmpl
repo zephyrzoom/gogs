@@ -67,7 +67,7 @@
 						<div class="inline field {{if .Err_MaxRepoTotalSize}}error{{end}}">
 							<label for="max_repo_total_size">{{.i18n.Tr "admin.users.max_repo_total_size"}}</label>
 							<input id="max_repo_total_size" name="max_repo_total_size" type="number" min="0" value="{{.User.MaxRepoTotalSize}}">
-							<p class="help">{{.i18n.Tr "admin.users.max_repo_total_size_desc"}}</p>
+							<p class="help">{{.i18n.Tr "admin.users.max_repo_total_size_desc" .GlobalMaxRepoTotalSize}}</p>
 						</div>
 
 						<div class="ui divider"></div>

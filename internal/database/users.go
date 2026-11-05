@@ -1336,6 +1336,16 @@ func (u *User) canCreateRepo() bool {
 	return u.maxNumRepos() <= -1 || u.NumRepos < u.maxNumRepos()
 }
 
+// MaxRepoTotalSizeLimit returns the effective maximum total disk usage in
+// megabytes of all repositories owned by the user, 0 means no limit. It falls
+// back to the global default when the user specific limit is not set.
+func (u *User) MaxRepoTotalSizeLimit() int64 {
+	if u.MaxRepoTotalSize > 0 {
+		return u.MaxRepoTotalSize
+	}
+	return conf.Repository.MaxRepoTotalSize
+}
+
 // CanCreateOrganization returns true if user can create organizations.
 func (u *User) CanCreateOrganization() bool {
 	return !conf.Admin.DisableRegularOrgCreation || u.IsAdmin

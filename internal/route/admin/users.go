@@ -157,6 +157,7 @@ func EditUser(c *context.Context) {
 	c.Data["PageIsAdmin"] = true
 	c.Data["PageIsAdminUsers"] = true
 	c.Data["EnableLocalPathMigration"] = conf.Repository.EnableLocalPathMigration
+	c.Data["GlobalMaxRepoTotalSize"] = conf.Repository.MaxRepoTotalSize
 
 	prepareUserInfo(c)
 	if c.Written() {
@@ -171,6 +172,7 @@ func EditUserPost(c *context.Context, f form.AdminEditUser) {
 	c.Data["PageIsAdmin"] = true
 	c.Data["PageIsAdminUsers"] = true
 	c.Data["EnableLocalPathMigration"] = conf.Repository.EnableLocalPathMigration
+	c.Data["GlobalMaxRepoTotalSize"] = conf.Repository.MaxRepoTotalSize
 
 	u := prepareUserInfo(c)
 	if c.Written() {

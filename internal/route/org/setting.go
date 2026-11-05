@@ -23,12 +23,14 @@ const (
 func Settings(c *context.Context) {
 	c.Title("org.settings")
 	c.Data["PageIsSettingsOptions"] = true
+	c.Data["GlobalMaxRepoTotalSize"] = conf.Repository.MaxRepoTotalSize
 	c.Success(tmplOrgSettingsOptions)
 }
 
 func SettingsPost(c *context.Context, f form.UpdateOrgSetting) {
 	c.Title("org.settings")
 	c.Data["PageIsSettingsOptions"] = true
+	c.Data["GlobalMaxRepoTotalSize"] = conf.Repository.MaxRepoTotalSize
 
 	if c.HasError() {
 		c.Success(tmplOrgSettingsOptions)

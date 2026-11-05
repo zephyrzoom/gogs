@@ -139,6 +139,14 @@
 								<i>{{.i18n.Tr "admin.config.not_set"}}</i>
 							{{end}}
 						</dd>
+						<dt>{{.i18n.Tr "admin.config.repo.max_repo_total_size"}}</dt>
+						<dd>
+							{{if .Repository.MaxRepoTotalSize}}
+								{{.Repository.MaxRepoTotalSize}} MB
+							{{else}}
+								<i>{{.i18n.Tr "admin.config.not_set"}}</i>
+							{{end}}
+						</dd>
 						<dt>{{.i18n.Tr "admin.config.repo.preferred_licenses"}}</dt>
 						<dd>{{Join .Repository.PreferredLicenses ", "}}</dd>
 						<dt>{{.i18n.Tr "admin.config.repo.disable_http_git"}}</dt>

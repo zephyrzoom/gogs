@@ -318,6 +318,7 @@ type RepositoryOpts struct {
 	ForcePrivate             bool
 	MaxCreationLimit         int
 	MaxRepoSize              int64 // In megabytes, 0 means no limit
+	MaxRepoTotalSize         int64 // In megabytes, 0 means no limit
 	PreferredLicenses        []string
 	DisableHTTPGit           bool `ini:"DISABLE_HTTP_GIT"`
 	EnableLocalPathMigration bool

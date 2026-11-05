@@ -240,8 +240,15 @@ func checkOwnerTotalSizeLimit(repoOwner, repoName string) {
 		}
 		return
 	}
-	if owner.MaxRepoTotalSize <= 0 {
+	// The account specific limit takes precedence over the global default,
+	// which is configured by "MAX_REPO_TOTAL_SIZE" of the "[repository]" section.
+	limitMB := owner.MaxRepoTotalSizeLimit()
+	if limitMB <= 0 {
 		return
+	}
+	limitSource := "全局默认上限"
+	if owner.MaxRepoTotalSize > 0 {
+		limitSource = "账号上限"
 	}
 
 	// The quarantine directory of the on-going push lives inside the repository
@@ -258,7 +265,7 @@ func checkOwnerTotalSizeLimit(repoOwner, repoName string) {
 		sizeKB += lfsSize / 1024
 	}
 
-	limitKB := owner.MaxRepoTotalSize * 1024
+	limitKB := limitMB * 1024
 	pendingKB := repoutil.PendingObjectsSize()
 	if sizeKB < limitKB && sizeKB+pendingKB < limitKB {
 		return
@@ -272,7 +279,7 @@ func checkOwnerTotalSizeLimit(repoOwner, repoName string) {
 	}
 	fmt.Fprintf(&b, "仓库：%s/%s\n", repoOwner, repoName)
 	fmt.Fprintf(&b, "账号：%s\n", owner.Name)
-	fmt.Fprintf(&b, "当前总占用：%s，账号上限：%d MB", repoutil.HumanSize(sizeKB), owner.MaxRepoTotalSize)
+	fmt.Fprintf(&b, "当前总占用：%s，%s：%d MB", repoutil.HumanSize(sizeKB), limitSource, limitMB)
 	if pendingKB > 0 && sizeKB < limitKB {
 		fmt.Fprintf(&b, "，本次推送约 %s", repoutil.HumanSize(pendingKB))
 	}

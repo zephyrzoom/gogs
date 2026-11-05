@@ -1397,3 +1397,26 @@ func usersUnfollow(t *testing.T, ctx context.Context, s *UsersStore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, bob.NumFollowers)
 }
+
+func TestUser_MaxRepoTotalSizeLimit(t *testing.T) {
+	t.Run("account specific limit", func(t *testing.T) {
+		conf.SetMockRepository(t, conf.RepositoryOpts{MaxRepoTotalSize: 1024})
+
+		user := &User{MaxRepoTotalSize: 100}
+		assert.EqualValues(t, 100, user.MaxRepoTotalSizeLimit())
+	})
+
+	t.Run("fall back to the global default", func(t *testing.T) {
+		conf.SetMockRepository(t, conf.RepositoryOpts{MaxRepoTotalSize: 1024})
+
+		user := &User{}
+		assert.EqualValues(t, 1024, user.MaxRepoTotalSizeLimit())
+	})
+
+	t.Run("no limit", func(t *testing.T) {
+		conf.SetMockRepository(t, conf.RepositoryOpts{})
+
+		user := &User{}
+		assert.EqualValues(t, 0, user.MaxRepoTotalSizeLimit())
+	})
+}
