@@ -976,8 +976,8 @@ func (s *UsersStore) Update(ctx context.Context, userID int64, opts UpdateUserOp
 		updates["max_repo_creation"] = *opts.MaxRepoCreation
 	}
 	if opts.MaxRepoTotalSize != nil {
-		if *opts.MaxRepoTotalSize < 0 {
-			*opts.MaxRepoTotalSize = 0
+		if *opts.MaxRepoTotalSize < -1 {
+			*opts.MaxRepoTotalSize = -1
 		}
 		updates["max_repo_total_size"] = *opts.MaxRepoTotalSize
 	}
@@ -1254,7 +1254,7 @@ type User struct {
 	// Maximum repository creation limit, -1 means use global default
 	MaxRepoCreation int `xorm:"NOT NULL DEFAULT -1" gorm:"not null;default:-1"`
 	// Maximum total disk usage of all owned repositories in megabytes,
-	// 0 means no limit
+	// 0 means falling back to the global default, and -1 means no limit
 	MaxRepoTotalSize int64 `xorm:"NOT NULL DEFAULT 0" gorm:"not null;default:0"`
 
 	// Permissions
@@ -1337,11 +1337,16 @@ func (u *User) canCreateRepo() bool {
 }
 
 // MaxRepoTotalSizeLimit returns the effective maximum total disk usage in
-// megabytes of all repositories owned by the user, 0 means no limit. It falls
-// back to the global default when the user specific limit is not set.
+// megabytes of all repositories owned by the user, 0 means no limit.
+//
+// It falls back to the global default when the user specific limit is 0, and
+// returns 0 (no limit) when the user specific limit is negative.
 func (u *User) MaxRepoTotalSizeLimit() int64 {
 	if u.MaxRepoTotalSize > 0 {
 		return u.MaxRepoTotalSize
+	}
+	if u.MaxRepoTotalSize < 0 {
+		return 0
 	}
 	return conf.Repository.MaxRepoTotalSize
 }

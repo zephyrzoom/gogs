@@ -40,6 +40,7 @@ func Settings(c *context.Context) {
 	c.Title("repo.settings")
 	c.PageIs("SettingsOptions")
 	c.RequireAutosize()
+	c.Data["GlobalMaxRepoSize"] = conf.Repository.MaxRepoSize
 	c.Success(tmplRepoSettingsOptions)
 }
 
@@ -47,6 +48,7 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 	c.Title("repo.settings")
 	c.PageIs("SettingsOptions")
 	c.RequireAutosize()
+	c.Data["GlobalMaxRepoSize"] = conf.Repository.MaxRepoSize
 
 	repo := c.Repo.Repository
 
@@ -156,6 +158,17 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 		repo.EnablePulls = f.EnablePulls
 		repo.PullsIgnoreWhitespace = f.PullsIgnoreWhitespace
 		repo.PullsAllowRebase = f.PullsAllowRebase
+
+		// The per repository size limit is a quota that only site administrators
+		// are allowed to adjust: 0 means following the global default, and -1
+		// means the repository is not limited.
+		if c.IsLogged && c.User.IsAdmin {
+			maxRepoSize := f.MaxRepoSize
+			if maxRepoSize < -1 {
+				maxRepoSize = -1
+			}
+			repo.MaxRepoSize = maxRepoSize
+		}
 
 		if !repo.EnableWiki || repo.EnableExternalWiki {
 			repo.AllowPublicWiki = false

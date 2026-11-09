@@ -37,14 +37,43 @@ func lfsSizeByOwnerKB(ctx context.Context, db *gorm.DB, ownerID int64) int64 {
 	return size / 1024
 }
 
+// repoSizeLimit returns the effective disk usage limit of the given repository
+// in megabytes, and whether the limit is set for the repository itself.
+//
+// The repository specific limit takes precedence over the global default, which
+// is configured by "MAX_REPO_SIZE" of the "[repository]" section:
+//   - 0 means the repository follows the global default
+//   - -1 means the repository is explicitly not limited
+//   - any other positive value is the limit of the repository
+//
+// A returned limit of 0 or less means no limit.
+func repoSizeLimit(repo *Repository) (limitMB int64, fromRepo bool) {
+	if repo == nil {
+		return conf.Repository.MaxRepoSize, false
+	}
+
+	switch {
+	case repo.MaxRepoSize > 0:
+		return repo.MaxRepoSize, true
+	case repo.MaxRepoSize < 0:
+		return 0, true
+	default:
+		return conf.Repository.MaxRepoSize, false
+	}
+}
+
 // CheckSizeLimits reports whether the repository has reached the size limits
 // that apply to it, and returns a message explaining the rejection to the user
 // when it has. The message is empty when no limit is reached.
 //
 // Two independent limits are checked:
-//   - the per repository limit, see "MAX_REPO_SIZE" of the "[repository]" section
+//   - the per repository limit, see "max_repo_size" of the repository and
+//     "MAX_REPO_SIZE" of the "[repository]" section as the global default
 //   - the total disk usage limit of the owning account, see "MAX_REPO_TOTAL_SIZE"
 //     of the "[repository]" section and "max_repo_total_size" of the account
+//
+// For both settings, 0 means falling back to the global default of the account
+// or repository, and -1 means the limit is explicitly waived.
 //
 // It is safe to call this before the objects of a push are received, which
 // allows rejecting a push without transferring it.
@@ -69,11 +98,16 @@ func (s *RepositoriesStore) CheckSizeLimits(ctx context.Context, repoID int64) (
 	return checkOwnerTotalSizeLimit(ctx, s.db, repo, owner)
 }
 
-// checkRepoSizeLimit checks the per repository limit of "MAX_REPO_SIZE".
+// checkRepoSizeLimit checks the per repository limit of "max_repo_size", which
+// falls back to "MAX_REPO_SIZE" when the repository does not have its own limit.
 func checkRepoSizeLimit(ctx context.Context, db *gorm.DB, repo *Repository, owner *User) (bool, string) {
-	limitMB := conf.Repository.MaxRepoSize
+	limitMB, fromRepo := repoSizeLimit(repo)
 	if limitMB <= 0 {
 		return false, ""
+	}
+	limitSource := "全局默认上限"
+	if fromRepo {
+		limitSource = "仓库单独上限"
 	}
 
 	sizeKB, err := repoutil.RepositorySize(repoutil.RepositoryPath(owner.Name, repo.Name))
@@ -102,7 +136,7 @@ func checkRepoSizeLimit(ctx context.Context, db *gorm.DB, repo *Repository, owne
 	if lfsKB > 0 {
 		fmt.Fprintf(&b, " + LFS 对象 %s", repoutil.HumanSize(lfsKB))
 	}
-	fmt.Fprintf(&b, "），单仓库上限：%d MB", limitMB)
+	fmt.Fprintf(&b, "），单仓库上限（%s）：%d MB", limitSource, limitMB)
 	if pendingKB > 0 && totalKB < limitKB {
 		fmt.Fprintf(&b, "，本次推送约 %s", repoutil.HumanSize(pendingKB))
 	}
@@ -121,7 +155,7 @@ func checkOwnerTotalSizeLimit(ctx context.Context, db *gorm.DB, repo *Repository
 		return false, ""
 	}
 	limitSource := "全局默认上限"
-	if owner.MaxRepoTotalSize > 0 {
+	if owner.MaxRepoTotalSize != 0 {
 		limitSource = "账号上限"
 	}
 

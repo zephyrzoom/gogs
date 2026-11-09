@@ -118,6 +118,10 @@ type RepoSetting struct {
 	EnablePulls           bool
 	PullsIgnoreWhitespace bool
 	PullsAllowRebase      bool
+
+	// MaxRepoSize is the per repository size limit in megabytes, only
+	// site administrators are allowed to change it.
+	MaxRepoSize int64
 }
 
 func (f *RepoSetting) Validate(ctx *macaron.Context, errs binding.Errors) binding.Errors {

@@ -65,6 +65,8 @@ var migrations = []Migration{
 	NewMigration("noop", func(*gorm.DB) error { return nil }),
 	// v22 -> v23
 	NewMigration("add max_repo_total_size column to user table", addMaxRepoTotalSizeToUser),
+	// v23 -> v24
+	NewMigration("add max_repo_size column to repository table", addMaxRepoSizeToRepository),
 }
 
 var errMigrationSkipped = errors.New("the migration has been skipped")

@@ -66,11 +66,13 @@
 						</div>
 						<div class="inline field {{if .Err_MaxRepoTotalSize}}error{{end}}">
 							<label for="max_repo_total_size">{{.i18n.Tr "admin.users.max_repo_total_size"}}</label>
-							<input id="max_repo_total_size" name="max_repo_total_size" type="number" min="0" value="{{.User.MaxRepoTotalSize}}">
+							<input id="max_repo_total_size" name="max_repo_total_size" type="number" min="-1" value="{{.User.MaxRepoTotalSize}}">
 							<p class="help">{{.i18n.Tr "admin.users.max_repo_total_size_desc"}}</p>
 							<p class="help">
-								{{if .User.MaxRepoTotalSize}}
+								{{if gt .User.MaxRepoTotalSize 0}}
 									{{.i18n.Tr "admin.users.max_repo_total_size_effective_account" .User.MaxRepoTotalSize}}
+								{{else if lt .User.MaxRepoTotalSize 0}}
+									{{.i18n.Tr "admin.users.max_repo_total_size_effective_unlimited"}}
 								{{else if .GlobalMaxRepoTotalSize}}
 									{{.i18n.Tr "admin.users.max_repo_total_size_effective_global" .GlobalMaxRepoTotalSize}}
 								{{else}}

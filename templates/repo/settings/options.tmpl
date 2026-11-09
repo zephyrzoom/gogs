@@ -239,6 +239,27 @@
 							</div>
 						{{end}}
 
+						{{if .IsAdmin}}
+							<!-- Repository size limit, site administrators only -->
+							<div class="inline field">
+								<label for="max_repo_size">{{.i18n.Tr "repo.settings.max_repo_size"}}</label>
+								<input id="max_repo_size" name="max_repo_size" type="number" min="-1" value="{{.Repository.MaxRepoSize}}">
+								<p class="help">{{.i18n.Tr "repo.settings.max_repo_size_desc" .GlobalMaxRepoSize}}</p>
+								<p class="help">
+									{{if gt .Repository.MaxRepoSize 0}}
+										{{.i18n.Tr "repo.settings.max_repo_size_effective_repo" .Repository.MaxRepoSize}}
+									{{else if lt .Repository.MaxRepoSize 0}}
+										{{.i18n.Tr "repo.settings.max_repo_size_effective_unlimited"}}
+									{{else if .GlobalMaxRepoSize}}
+										{{.i18n.Tr "repo.settings.max_repo_size_effective_global" .GlobalMaxRepoSize}}
+									{{else}}
+										{{.i18n.Tr "repo.settings.max_repo_size_effective_unlimited"}}
+									{{end}}
+								</p>
+								<p class="help">{{.i18n.Tr "repo.settings.max_repo_size_usage"}} <span>{{.Repository.Size | FileSize}}</span></p>
+							</div>
+						{{end}}
+
 						<div class="field">
 							<button class="ui green button">{{$.i18n.Tr "repo.settings.update_settings"}}</button>
 						</div>

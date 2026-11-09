@@ -152,15 +152,19 @@ func NewRepoContext() {
 
 // Repository contains information of a repository.
 type Repository struct {
-	ID              int64  `gorm:"primaryKey"`
-	OwnerID         int64  `xorm:"UNIQUE(s)" gorm:"uniqueIndex:repo_owner_name_unique"`
-	Owner           *User  `xorm:"-" gorm:"-" json:"-"`
-	LowerName       string `xorm:"UNIQUE(s) INDEX NOT NULL" gorm:"uniqueIndex:repo_owner_name_unique;index;not null"`
-	Name            string `xorm:"INDEX NOT NULL" gorm:"index;not null"`
-	Description     string `xorm:"VARCHAR(512)" gorm:"type:VARCHAR(512)"`
-	Website         string
-	DefaultBranch   string
-	Size            int64 `xorm:"NOT NULL DEFAULT 0" gorm:"not null;default:0"`
+	ID            int64  `gorm:"primaryKey"`
+	OwnerID       int64  `xorm:"UNIQUE(s)" gorm:"uniqueIndex:repo_owner_name_unique"`
+	Owner         *User  `xorm:"-" gorm:"-" json:"-"`
+	LowerName     string `xorm:"UNIQUE(s) INDEX NOT NULL" gorm:"uniqueIndex:repo_owner_name_unique;index;not null"`
+	Name          string `xorm:"INDEX NOT NULL" gorm:"index;not null"`
+	Description   string `xorm:"VARCHAR(512)" gorm:"type:VARCHAR(512)"`
+	Website       string
+	DefaultBranch string
+	Size          int64 `xorm:"NOT NULL DEFAULT 0" gorm:"not null;default:0"`
+	// MaxRepoSize is the maximum disk usage of this repository in megabytes,
+	// 0 means falling back to the global limit "MAX_REPO_SIZE", and -1 means
+	// no limit.
+	MaxRepoSize     int64 `xorm:"NOT NULL DEFAULT 0" gorm:"not null;default:0"`
 	UseCustomAvatar bool
 
 	// Counters

@@ -1413,6 +1413,13 @@ func TestUser_MaxRepoTotalSizeLimit(t *testing.T) {
 		assert.EqualValues(t, 1024, user.MaxRepoTotalSizeLimit())
 	})
 
+	t.Run("account explicitly waives the global limit", func(t *testing.T) {
+		conf.SetMockRepository(t, conf.RepositoryOpts{MaxRepoTotalSize: 1024})
+
+		user := &User{MaxRepoTotalSize: -1}
+		assert.EqualValues(t, 0, user.MaxRepoTotalSizeLimit())
+	})
+
 	t.Run("no limit", func(t *testing.T) {
 		conf.SetMockRepository(t, conf.RepositoryOpts{})
 
