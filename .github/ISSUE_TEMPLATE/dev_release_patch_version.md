@@ -21,18 +21,12 @@ On the release branch:
 
 - [ ] [Update the hard-coded version](https://github.com/gogs/gogs/commit/f0e3cd90f8d7695960eeef2e4e54b2e717302f6c) to the current release, e.g. `0.12.0` -> `0.12.1`.
 - [ ] Wait for GitHub Actions to complete and no failed jobs.
-- [ ] Publish new RC releases in [GitHub release](https://github.com/gogs/gogs/releases) (e.g. `v0.12.0-rc.1`, `v0.12.0-rc.2`) to ensure Docker workflow succeeds.
-	- ⚠️ **Make sure the tag is created on the release branch**.
-	- Pull down the Docker image and [run through application setup](https://github.com/gogs/gogs/blob/main/docker/README.md) to make sure nothing blows up.
 - [ ] Publish a new [GitHub release](https://github.com/gogs/gogs/releases) with entries from [CHANGELOG](https://github.com/gogs/gogs/blob/main/CHANGELOG.md) for the current patch release and all previous releases with same minor version.
 	- ⚠️ **Make sure the tag is created on the release branch**.
 - [ ] Update all previous GitHub releases with same minor version with the warning:
 	```
 	**ℹ️ Heads up! There is a new patch release [0.12.1](https://github.com/gogs/gogs/releases/tag/v0.12.1) available, we recommend directly installing or upgrading to that version.**
 	```
-- [ ] [Wait for a new image tag for the current release](https://github.com/gogs/gogs/actions/workflows/docker.yml?query=event%3Arelease) to be created automatically on both [Docker Hub](https://hub.docker.com/r/gogs/gogs/tags) and [GitHub Container registry](https://github.com/gogs/gogs/pkgs/container/gogs).
-	- Pull down the Docker image and [run through application setup](https://github.com/gogs/gogs/blob/main/docker/README.md) to make sure nothing blows up.
-- [ ] [Update Docker image tag](https://www.notion.so/jcunknwon/Cheatsheet-and-playbooks-c3b053da42114411bd27285cd065b2a6?source=copy_link#1654f105c63f80958d96cd72e2f5df69) for the minor release `<MAJOR>.<MINOR>` on both [Docker Hub](https://hub.docker.com/r/gogs/gogs/tags) and [GitHub Container registry](https://github.com/gogs/gogs/pkgs/container/gogs).
 - [ ] [Compile and pack binaries](https://www.notion.so/jcunknwon/Cheatsheet-and-playbooks-c3b053da42114411bd27285cd065b2a6?source=copy_link#1654f105c63f803f8bfcc117395d9747) (all prefixed with `gogs_<MAJOR>.<MINOR>.<PATCH>_`, e.g. `gogs_0.12.0_`):
 	- [ ] macOS: `darwin_arm64.zip`, `darwin_amd64.zip`
 	- [ ] Linux: `linux_amd64.tar.gz`, `linux_amd64.zip`
